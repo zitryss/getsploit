@@ -1,5 +1,20 @@
 #!/usr/bin/env python3.6
 
+import argparse
+import functools
+import json
+import os
+import os.path
+import re
+import sqlite3
+import ssl
+import sys
+import textwrap
+import unicodedata
+import urllib.parse
+import urllib.request
+import zipfile
+
 __author__ = "Kir Ermakov <isox(at)vulners.com>"
 __copyright__ = "Copyright 2017, Vulners"
 __credits__ = ["Kir Ermakov",
@@ -14,15 +29,6 @@ __maintainer__ = "Kir Ermakov"
 __email__ = "isox@vulners.com"
 __status__ = "Release"
 
-import urllib.request as urllib2
-import json
-import ssl
-import sys
-import urllib
-import platform
-import unicodedata
-import re
-import os
 
 vulnersURL = {
     'searchAPI' : 'https://vulners.com/api/v3/search/lucene/',
@@ -30,13 +36,10 @@ vulnersURL = {
     'idAPI' : 'https://vulners.com/api/v3/search/id/',
     }
 
-import argparse
 
 __all__ = ["Texttable", "ArraySizeError"]
 
-import textwrap
 
-from functools import reduce
 
 unicode_type = str
 bytes_type = bytes
@@ -45,8 +48,6 @@ bytes_type = bytes
 DBPATH, SCRIPTNAME = os.path.split(os.path.abspath(__file__))
 DBFILE = os.path.join(DBPATH, 'getsploit.db')
 
-import sqlite3
-import zipfile
 
 
 def obj2unicode(obj):
@@ -217,7 +218,7 @@ class Texttable:
         self._check_row_size(array)
         try:
             array = list(map(int, array))
-            if reduce(min, array) <= 0:
+            if functools.reduce(min, array) <= 0:
                 raise ValueError
         except ValueError:
             sys.stderr.write("Wrong argument in column width specification\n")
@@ -523,7 +524,7 @@ class Texttable:
                 else:
                     array.extend(textwrap.wrap(c, width))
             line_wrapped.append(array)
-        max_cell_lines = reduce(max, list(map(len, line_wrapped)))
+        max_cell_lines = functools.reduce(max, list(map(len, line_wrapped)))
         for cell, valign in zip(line_wrapped, self._valign):
             if isheader:
                 valign = "t"
@@ -575,7 +576,7 @@ def downloadFile(srcurl, dstfilepath, progress_callback=None, block_size=8192):
                 if progress_callback!=None: progress_callback(file_size_dl,file_size)
     with open(dstfilepath,"wb") as out_file:
         opener = getUrllibOpener()
-        req = urllib2.Request(srcurl)
+        req = urllib.request.Request(srcurl)
         with opener.open(req) as response:
             file_size = int(response.getheader("Content-Length"))
             _download_helper(response,out_file,file_size)
@@ -584,14 +585,14 @@ def getUrllibOpener():
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
-    opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ctx))
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
     opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v%s' % __version__)]
     return opener
 
 
 def searchVulnersQuery(searchQuery, limit):
     vulnersSearchRequest = {"query":searchQuery, 'skip':0, 'size':limit}
-    req = urllib2.Request(vulnersURL['searchAPI'])
+    req = urllib.request.Request(vulnersURL['searchAPI'])
     response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
     responseData = response.read()
     if isinstance(responseData, bytes):
@@ -612,7 +613,7 @@ def downloadVulnersGetsploitDB(path):
 
 def getVulnersExploit(exploitId):
     vulnersSearchRequest = {"id":exploitId}
-    req = urllib2.Request(vulnersURL['idAPI'])
+    req = urllib.request.Request(vulnersURL['idAPI'])
     response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
     responseData = response.read()
     if isinstance(responseData, bytes):
