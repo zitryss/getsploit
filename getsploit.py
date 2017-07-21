@@ -1,52 +1,88 @@
 #!/usr/bin/env python3.6
 
 import argparse
+import sys
 
 import requests
 import texttable
 
 
-def receive_data(search_query, count):
-    vulners_search_request = {
-        "query": search_query,
+def main():
+    if sys.version_info < (3, 6):
+        raise SystemExit("Python version 3.6 or later is required!")
+    search_exploits()
+    sys.exit()
+
+
+def search_exploits():
+    args = parse_arguments()
+    json = receive_json(args)
+    data = extract_data(json)
+    table = create_table(data)
+    print_results(json, table)
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Exploit search utility.")
+    parser.add_argument("query", type=str)
+    parser.add_argument("-t", "--title", action="store_true",
+                        help="search only in the exploit title "
+                             "(default: description and source code)")
+    parser.add_argument("-c", "--count", default=10, type=int, metavar="N",
+                        help="search limit (default: 10)")
+    return parser.parse_args()
+
+
+def receive_json(args):
+    url = "https://vulners.com/api/v3/search/lucene/"
+    params = {
+        "query": define_search_query(args),
         "skip": 0,
-        "size": count,
+        "size": args.count,
     }
-    response = requests.get("https://vulners.com/api/v3/search/lucene/", vulners_search_request)
+    response = requests.get(url, params)
     return response.json()
 
 
-def search_exploit(args):
+def define_search_query(args):
     if args.title:
-        search_query = f"bulletinFamily:exploit AND (title:\"{args.query}\")"
+        return f"bulletinFamily:exploit AND (title:\"{args.query}\")"
     else:
-        search_query = f"bulletinFamily:exploit AND {args.query}"
-    search_results = receive_data(search_query, args.count)
-    return search_results.get("data")
+        return f"bulletinFamily:exploit AND {args.query}"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Exploit search and download utility")
-    parser.add_argument("query", type=str, help="Exploit search query. See https://vulners.com/help for the detailed manual.")
-    parser.add_argument("-t", "--title", action="store_true", help="Search JUST the exploit title (Default is description and source code).")
-    parser.add_argument("-c", "--count", default=10, type=int, help="Search limit. Default 10.")
-    args = parser.parse_args()
-    search_results = search_exploit(args)
-    output_table = texttable.Texttable()
-    output_table.set_cols_dtype(['t', 't', 't'])
-    output_table.set_cols_align(['c', 'l', 'c'])
-    output_table.set_cols_width(['20', '30', '100'])
-    table_rows = [['ID', 'Exploit Title', 'URL']]
-    for bulletinSource in search_results.get("search"):
-        bulletin = bulletinSource.get('_source')
-        bulletin_url = bulletin.get('vref') or 'https://vulners.com/%s/%s' % (bulletin.get('type'), bulletin.get('id'))
-        table_rows.append([bulletin.get('id'), bulletin.get('title'), bulletin_url])
-    print("Total found exploits: %s" % search_results.get('total'))
-    max_width = max(len(element[2]) for element in table_rows)
-    output_table.set_cols_width([20, 30, max_width])
-    output_table.add_rows(table_rows)
-    print(output_table.draw())
+def extract_data(json):
+    search_results = json["data"]["search"]
+    data = [["ID", "Exploit Title", "URL"]]
+    for entry in search_results:
+        id_ = entry["_source"]["id"]
+        title = entry["_source"]["title"]
+        type_ = entry["_source"]["type"]
+        url = f"https://vulners.com/{type_}/{id_}"
+        data.append([id_, title, url])
+    return data
 
 
-if __name__ == '__main__':
+def create_table(data):
+    table = texttable.Texttable()
+    table.set_cols_align(["c", "l", "c"])
+    table.set_cols_width([20, 30, calculate_column_width(data, column=3)])
+    table.add_rows(data)
+    return table
+
+
+def calculate_column_width(data, column):
+    return max(len(each[column-1]) for each in data)
+
+
+def print_results(json, table):
+    print(f"Total exploits found: {count_search_results(json)}")
+    print(table.draw())
+
+
+def count_search_results(json):
+    return json["data"]["total"]
+
+
+if __name__ == "__main__":
     main()
