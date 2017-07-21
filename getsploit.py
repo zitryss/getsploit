@@ -10,11 +10,7 @@ import requests
 import texttable
 
 
-def slugify(value):
-    """
-    Normalizes string, converts to lowercase, removes non-alpha characters,
-    and converts spaces to hyphens.
-    """
+def normalize_string(value):
     value = re.sub('[^\w\s-]', '', value).strip().lower()
     value = re.sub('[-\s]+', '-', value)
     return value
@@ -61,11 +57,11 @@ def main():
         if args.json:
             jsonRows.append({'id':bulletin.get('id'), 'title':bulletin.get('title'), 'url':bulletinUrl})
         if args.mirror:
-            pathName = './%s' % slugify(args.query)
+            pathName = './%s' % normalize_string(args.query)
             # Put results it the dir
             if not os.path.exists(pathName):
                 os.mkdir(pathName)
-            with open("./%s/%s.txt" % (pathName,slugify(bulletin.get('id'))), 'w') as exploitFile:
+            with open("./%s/%s.txt" % (pathName, normalize_string(bulletin.get('id'))), 'w') as exploitFile:
                 exploitData = bulletin.get('sourceData') or bulletin.get('description')
                 exploitFile.write(exploitData)
     if args.json:
