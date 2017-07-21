@@ -8,7 +8,6 @@ import re
 import sqlite3
 import ssl
 import sys
-import unicodedata
 import urllib.parse
 import urllib.request
 import zipfile
@@ -20,39 +19,8 @@ VULNERS_URL = {
     'updateAPI': 'https://vulners.com/api/v3/archive/getsploit/',
     'idAPI': 'https://vulners.com/api/v3/search/id/',
 }
-UNICODE_TYPE = str
-BYTES_TYPE = bytes
 DBPATH, SCRIPTNAME = os.path.split(os.path.abspath(__file__))
 DBFILE = os.path.join(DBPATH, 'getsploit.db')
-
-
-def obj2unicode(obj):
-    """Return a unicode representation of a python object
-    """
-    if isinstance(obj, UNICODE_TYPE):
-        return obj
-    elif isinstance(obj, BYTES_TYPE):
-        try:
-            return UNICODE_TYPE(obj, 'utf-8')
-        except UnicodeDecodeError as strerror:
-            sys.stderr.write("UnicodeDecodeError exception for string '%s': %s\n" % (obj, strerror))
-            return UNICODE_TYPE(obj, 'utf-8', 'replace')
-    else:
-        return UNICODE_TYPE(obj)
-
-
-def lenNg(iterable):
-    """Redefining len here so it will be able to work with non-ASCII characters
-    """
-    if isinstance(iterable, BYTES_TYPE) or isinstance(iterable, UNICODE_TYPE):
-        unicode_data = obj2unicode(iterable)
-        if hasattr(unicodedata, 'east_asian_width'):
-            w = unicodedata.east_asian_width
-            return sum([w(c) in 'WF' and 2 or 1 for c in unicode_data])
-        else:
-            return unicode_data.__len__()
-    else:
-        return iterable.__len__()
 
 
 def slugify(value):
@@ -127,17 +95,6 @@ def downloadVulnersGetsploitDB(path):
     zip_ref.close()
     os.remove(archiveFileName)
     return True
-
-
-def getVulnersExploit(exploitId):
-    vulnersSearchRequest = {"id":exploitId}
-    req = urllib.request.Request(VULNERS_URL['idAPI'])
-    response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
-    responseData = response.read()
-    if isinstance(responseData, bytes):
-        responseData = responseData.decode('utf8')
-    responseData = json.loads(responseData)
-    return responseData
 
 
 def exploitSearch(query, lookupFields=None, limit=10):
