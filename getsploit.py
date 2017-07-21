@@ -1,16 +1,9 @@
 #!/usr/bin/env python3.6
 
 import argparse
-import re
 
 import requests
 import texttable
-
-
-def normalize_string(value):
-    value = re.sub('[^\w\s-]', '', value).strip().lower()
-    value = re.sub('[-\s]+', '-', value)
-    return value
 
 
 def receive_data(search_query, count):
@@ -44,14 +37,11 @@ def main():
     output_table.set_cols_align(['c', 'l', 'c'])
     output_table.set_cols_width(['20', '30', '100'])
     table_rows = [['ID', 'Exploit Title', 'URL']]
-    json_rows = []
     for bulletinSource in search_results.get("search"):
         bulletin = bulletinSource.get('_source')
         bulletin_url = bulletin.get('vref') or 'https://vulners.com/%s/%s' % (bulletin.get('type'), bulletin.get('id'))
         table_rows.append([bulletin.get('id'), bulletin.get('title'), bulletin_url])
-    # Text output
     print("Total found exploits: %s" % search_results.get('total'))
-    # Set max coll width by len of the url for better copypaste
     max_width = max(len(element[2]) for element in table_rows)
     output_table.set_cols_width([20, 30, max_width])
     output_table.add_rows(table_rows)
