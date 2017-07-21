@@ -139,45 +139,29 @@ def exploitLocalSearch(query, lookupFields=None, limit=10):
 
 
 def main():
-    description = 'Exploit search and download utility'
-    parser = argparse.ArgumentParser(description)
-    addArgumentCall = parser.add_argument
-    #
-    addArgumentCall('query', metavar='query', type=str, nargs='*', help='Exploit search query. See https://vulners.com/help for the detailed manual.')
-    # Arguments
-    addArgumentCall('-t', '--title', action='store_true',
-                        help="Search JUST the exploit title (Default is description and source code).")
-    addArgumentCall('-j', '--json', action='store_true',
-                        help='Show result in JSON format.')
-    addArgumentCall('-m', '--mirror', action='store_true',
-                        help='Mirror (aka copies) search result exploit files to the subdirectory with your search query name.')
-    addArgumentCall('-c', '--count', nargs=1, type=int, default=10,
-                        help='Search limit. Default 10.')
-    addArgumentCall('-l', '--local', action='store_true',
-                    help='Perform search in the local database instead of searching online.')
-    addArgumentCall('-u', '--update', action='store_true',
-                    help='Update getsploit.db database. Will be downloaded in the script path.')
-    options = parser.parse_args()
-    searchQuery = " ".join(options.query)
-    if isinstance(options.count, list):
-        options.count = options.count[0]
-    # Update goes first
-    if options.update:
+    parser = argparse.ArgumentParser(description="Exploit search and download utility")
+    parser.add_argument("query", type=str, help="Exploit search query. See https://vulners.com/help for the detailed manual.")
+    parser.add_argument("-t", "--title", action="store_true", help="Search JUST the exploit title (Default is description and source code).")
+    parser.add_argument("-j", "--json", action="store_true", help="Show result in JSON format.")
+    parser.add_argument("-m", "--mirror", action="store_true", help="Mirror (aka copies) search result exploit files to the subdirectory with your search query name.")
+    parser.add_argument("-c", "--count", default=10, type=int, help="Search limit. Default 10.")
+    parser.add_argument("-l", "--local", action="store_true", help="Perform search in the local database instead of searching online.")
+    parser.add_argument("-u", "--update", action="store_true", help="Update getsploit.db database. Will be downloaded in the script path.")
+    args = parser.parse_args()
+
+    if args.update:
         downloadVulnersGetsploitDB(DBPATH)
         print("Database download complete. Now you may search exploits using --local key './getsploit.py -l wordpress 4.7'")
         exit()
-    # Check that there is a query
-    if not searchQuery:
-        print("No search query provided. Type software name and version to find exploit.")
-        exit()
-    # Select propriate search method for the search. Local/remote
-    if options.local:
+
+    if args.local:
         if not os.path.exists(DBFILE):
             print("There is no local database file near getsploit. Run './getsploit.py --update'")
             exit()
-        finalQuery, searchResults = exploitLocalSearch(searchQuery, lookupFields=['title'] if options.title else None, limit = options.count)
+        finalQuery, searchResults = exploitLocalSearch(args.query, lookupFields=['title'] if args.title else None, limit = args.count)
     else:
-        finalQuery, searchResults = exploitSearch(searchQuery, lookupFields=['title'] if options.title else None, limit = options.count)
+        finalQuery, searchResults = exploitSearch(args.query, lookupFields=['title'] if args.title else None, limit = args.count)
+
     outputTable = texttable.Texttable()
     outputTable.set_cols_dtype(['t', 't', 't'])
     outputTable.set_cols_align(['c', 'l', 'c'])
@@ -188,17 +172,18 @@ def main():
         bulletin = bulletinSource.get('_source')
         bulletinUrl = bulletin.get('vref') or 'https://vulners.com/%s/%s' % (bulletin.get('type'), bulletin.get('id'))
         tableRows.append([bulletin.get('id'), bulletin.get('title'), bulletinUrl])
-        if options.json:
+        if args.json:
             jsonRows.append({'id':bulletin.get('id'), 'title':bulletin.get('title'), 'url':bulletinUrl})
-        if options.mirror:
-            pathName = './%s' % slugify(searchQuery)
+        if args.mirror:
+            pathName = './%s' % slugify(args.query)
             # Put results it the dir
             if not os.path.exists(pathName):
                 os.mkdir(pathName)
             with open("./%s/%s.txt" % (pathName,slugify(bulletin.get('id'))), 'w') as exploitFile:
                 exploitData = bulletin.get('sourceData') or bulletin.get('description')
                 exploitFile.write(exploitData)
-    if options.json:
+
+    if args.json:
         # Json output
         print(json.dumps(jsonRows))
     else:
