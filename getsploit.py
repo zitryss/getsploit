@@ -5,10 +5,8 @@ import json
 import os
 import os.path
 import re
-import ssl
-import urllib.parse
-import urllib.request
 
+import requests
 import texttable
 
 
@@ -22,34 +20,23 @@ def slugify(value):
     return value
 
 
-def getUrllibOpener():
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
-    opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v0.2.1')]
-    return opener
+def receive_data(search_query, count):
+    vulners_search_request = {
+        "query": search_query,
+        "skip": 0,
+        "size": count,
+    }
+    response = requests.get("https://vulners.com/api/v3/search/lucene/", vulners_search_request)
+    return response.json()
 
 
-def searchVulnersQuery(searchQuery, limit):
-    vulnersSearchRequest = {"query":searchQuery, 'skip':0, 'size':limit}
-    req = urllib.request.Request("https://vulners.com/api/v3/search/lucene/")
-    response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
-    responseData = response.read()
-    if isinstance(responseData, bytes):
-        responseData = responseData.decode('utf8')
-    responseData = json.loads(responseData)
-    return responseData
-
-
-def exploitSearch(query, lookupFields=None, limit=10):
-    # Build query
-    if lookupFields:
-        searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join("%s:\"%s\"" % (lField, query) for lField in lookupFields)
+def search_exploit(args):
+    if args.title:
+        search_query = f"bulletinFamily:exploit AND (title:\"{args.query}\")"
     else:
-        searchQuery = "bulletinFamily:exploit AND %s" % query
-    searchResults = searchVulnersQuery(searchQuery, limit).get('data')
-    return searchQuery, searchResults
+        search_query = f"bulletinFamily:exploit AND {args.query}"
+    search_results = receive_data(search_query, args.count)
+    return search_results.get("data")
 
 
 def main():
@@ -60,14 +47,14 @@ def main():
     parser.add_argument("-m", "--mirror", action="store_true", help="Mirror (aka copies) search result exploit files to the subdirectory with your search query name.")
     parser.add_argument("-c", "--count", default=10, type=int, help="Search limit. Default 10.")
     args = parser.parse_args()
-    finalQuery, searchResults = exploitSearch(args.query, lookupFields=['title'] if args.title else None, limit = args.count)
+    search_results = search_exploit(args)
     outputTable = texttable.Texttable()
     outputTable.set_cols_dtype(['t', 't', 't'])
     outputTable.set_cols_align(['c', 'l', 'c'])
     outputTable.set_cols_width(['20', '30', '100'])
     tableRows = [['ID', 'Exploit Title', 'URL']]
     jsonRows = []
-    for bulletinSource in searchResults.get('search'):
+    for bulletinSource in search_results.get("search"):
         bulletin = bulletinSource.get('_source')
         bulletinUrl = bulletin.get('vref') or 'https://vulners.com/%s/%s' % (bulletin.get('type'), bulletin.get('id'))
         tableRows.append([bulletin.get('id'), bulletin.get('title'), bulletinUrl])
@@ -86,9 +73,7 @@ def main():
         print(json.dumps(jsonRows))
     else:
         # Text output
-        print("Total found exploits: %s" % searchResults.get('total'))
-        quoteStringHandler = urllib.parse.quote_plus
-        print("Web-search URL: https://vulners.com/search?query=%s" % quoteStringHandler(finalQuery))
+        print("Total found exploits: %s" % search_results.get('total'))
         # Set max coll width by len of the url for better copypaste
         maxWidth = max(len(element[2]) for element in tableRows)
         outputTable.set_cols_width([20, 30, maxWidth])
