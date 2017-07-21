@@ -15,44 +15,36 @@ import zipfile
 
 import texttable
 
-vulnersURL = {
-    'searchAPI' : 'https://vulners.com/api/v3/search/lucene/',
-    'updateAPI' : 'https://vulners.com/api/v3/archive/getsploit/',
-    'idAPI' : 'https://vulners.com/api/v3/search/id/',
-    }
-
-
-
-
-
-unicode_type = str
-bytes_type = bytes
-
-
+VULNERS_URL = {
+    'searchAPI': 'https://vulners.com/api/v3/search/lucene/',
+    'updateAPI': 'https://vulners.com/api/v3/archive/getsploit/',
+    'idAPI': 'https://vulners.com/api/v3/search/id/',
+}
+UNICODE_TYPE = str
+BYTES_TYPE = bytes
 DBPATH, SCRIPTNAME = os.path.split(os.path.abspath(__file__))
 DBFILE = os.path.join(DBPATH, 'getsploit.db')
-
 
 
 def obj2unicode(obj):
     """Return a unicode representation of a python object
     """
-    if isinstance(obj, unicode_type):
+    if isinstance(obj, UNICODE_TYPE):
         return obj
-    elif isinstance(obj, bytes_type):
+    elif isinstance(obj, BYTES_TYPE):
         try:
-            return unicode_type(obj, 'utf-8')
+            return UNICODE_TYPE(obj, 'utf-8')
         except UnicodeDecodeError as strerror:
             sys.stderr.write("UnicodeDecodeError exception for string '%s': %s\n" % (obj, strerror))
-            return unicode_type(obj, 'utf-8', 'replace')
+            return UNICODE_TYPE(obj, 'utf-8', 'replace')
     else:
-        return unicode_type(obj)
+        return UNICODE_TYPE(obj)
 
 
 def lenNg(iterable):
     """Redefining len here so it will be able to work with non-ASCII characters
     """
-    if isinstance(iterable, bytes_type) or isinstance(iterable, unicode_type):
+    if isinstance(iterable, BYTES_TYPE) or isinstance(iterable, UNICODE_TYPE):
         unicode_data = obj2unicode(iterable)
         if hasattr(unicodedata, 'east_asian_width'):
             w = unicodedata.east_asian_width
@@ -73,7 +65,7 @@ def slugify(value):
     return value
 
 
-def progress_callback_simple(downloaded,total):
+def progress_callback_simple(downloaded, total):
     sys.stdout.write(
         "\r" +
         (len(str(total)) - len(str(downloaded))) * " " + str(downloaded) + "/%d" % total +
@@ -81,23 +73,21 @@ def progress_callback_simple(downloaded,total):
     )
     sys.stdout.flush()
 
+
 def downloadFile(srcurl, dstfilepath, progress_callback=None, block_size=8192):
     def _download_helper(response, out_file, file_size):
         if progress_callback!=None: progress_callback(0,file_size)
         if block_size == None:
             buffer = response.read()
             out_file.write(buffer)
-
             if progress_callback!=None: progress_callback(file_size,file_size)
         else:
             file_size_dl = 0
             while True:
                 buffer = response.read(block_size)
                 if not buffer: break
-
                 file_size_dl += len(buffer)
                 out_file.write(buffer)
-
                 if progress_callback!=None: progress_callback(file_size_dl,file_size)
     with open(dstfilepath,"wb") as out_file:
         opener = getUrllibOpener()
@@ -105,6 +95,7 @@ def downloadFile(srcurl, dstfilepath, progress_callback=None, block_size=8192):
         with opener.open(req) as response:
             file_size = int(response.getheader("Content-Length"))
             _download_helper(response,out_file,file_size)
+
 
 def getUrllibOpener():
     ctx = ssl.create_default_context()
@@ -117,7 +108,7 @@ def getUrllibOpener():
 
 def searchVulnersQuery(searchQuery, limit):
     vulnersSearchRequest = {"query":searchQuery, 'skip':0, 'size':limit}
-    req = urllib.request.Request(vulnersURL['searchAPI'])
+    req = urllib.request.Request(VULNERS_URL['searchAPI'])
     response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
     responseData = response.read()
     if isinstance(responseData, bytes):
@@ -125,10 +116,11 @@ def searchVulnersQuery(searchQuery, limit):
     responseData = json.loads(responseData)
     return responseData
 
+
 def downloadVulnersGetsploitDB(path):
     archiveFileName = os.path.join(path, 'getsploit.db.zip')
     print("Downloading getsploit database archive. Please wait, it may take time. Usually around 5-10 minutes.")
-    downloadFile(vulnersURL['updateAPI'], archiveFileName, progress_callback=progress_callback_simple)
+    downloadFile(VULNERS_URL['updateAPI'], archiveFileName, progress_callback=progress_callback_simple)
     print("\nUnpacking database.")
     zip_ref = zipfile.ZipFile(archiveFileName, 'r')
     zip_ref.extractall(DBPATH)
@@ -136,9 +128,10 @@ def downloadVulnersGetsploitDB(path):
     os.remove(archiveFileName)
     return True
 
+
 def getVulnersExploit(exploitId):
     vulnersSearchRequest = {"id":exploitId}
-    req = urllib.request.Request(vulnersURL['idAPI'])
+    req = urllib.request.Request(VULNERS_URL['idAPI'])
     response = getUrllibOpener().open(req, json.dumps(vulnersSearchRequest).encode('utf-8'))
     responseData = response.read()
     if isinstance(responseData, bytes):
@@ -146,7 +139,8 @@ def getVulnersExploit(exploitId):
     responseData = json.loads(responseData)
     return responseData
 
-def exploitSearch(query, lookupFields = None, limit = 10):
+
+def exploitSearch(query, lookupFields=None, limit=10):
     # Build query
     if lookupFields:
         searchQuery = "bulletinFamily:exploit AND (%s)" % " OR ".join("%s:\"%s\"" % (lField, query) for lField in lookupFields)
@@ -155,7 +149,8 @@ def exploitSearch(query, lookupFields = None, limit = 10):
     searchResults = searchVulnersQuery(searchQuery, limit).get('data')
     return searchQuery, searchResults
 
-def exploitLocalSearch(query, lookupFields = None, limit = 10):
+
+def exploitLocalSearch(query, lookupFields=None, limit=10):
     # Build query
     # CREATE VIRTUAL TABLE exploits USING FTS4(id text, title text, published DATE, description text, sourceData text, vhref text)
     sqliteConnection = sqlite3.connect(DBFILE)
@@ -185,6 +180,7 @@ def exploitLocalSearch(query, lookupFields = None, limit = 10):
     # Output must b
     return query, searchResults
 
+
 def main():
     description = 'Exploit search and download utility'
     parser = argparse.ArgumentParser(description)
@@ -204,25 +200,19 @@ def main():
                     help='Perform search in the local database instead of searching online.')
     addArgumentCall('-u', '--update', action='store_true',
                     help='Update getsploit.db database. Will be downloaded in the script path.')
-
     options = parser.parse_args()
     searchQuery = " ".join(options.query)
-
     if isinstance(options.count, list):
         options.count = options.count[0]
-
     # Update goes first
     if options.update:
         downloadVulnersGetsploitDB(DBPATH)
         print("Database download complete. Now you may search exploits using --local key './getsploit.py -l wordpress 4.7'")
         exit()
-
     # Check that there is a query
     if not searchQuery:
         print("No search query provided. Type software name and version to find exploit.")
         exit()
-
-
     # Select propriate search method for the search. Local/remote
     if options.local:
         if not os.path.exists(DBFILE):
@@ -231,7 +221,6 @@ def main():
         finalQuery, searchResults = exploitLocalSearch(searchQuery, lookupFields=['title'] if options.title else None, limit = options.count)
     else:
         finalQuery, searchResults = exploitSearch(searchQuery, lookupFields=['title'] if options.title else None, limit = options.count)
-
     outputTable = texttable.Texttable()
     outputTable.set_cols_dtype(['t', 't', 't'])
     outputTable.set_cols_align(['c', 'l', 'c'])
@@ -265,6 +254,7 @@ def main():
         outputTable.set_cols_width([20, 30, maxWidth])
         outputTable.add_rows(tableRows)
         print(outputTable.draw())
+
 
 if __name__ == '__main__':
     main()
