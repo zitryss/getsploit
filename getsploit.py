@@ -15,21 +15,6 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-__author__ = "Kir Ermakov <isox(at)vulners.com>"
-__copyright__ = "Copyright 2017, Vulners"
-__credits__ = ["Kir Ermakov",
-               "Igor Bulatenko",
-               "Ivan Elkin",
-               "Gerome Fournier <jef(at)foutaise.org>",
-               "JBFC"
-               ]
-__license__ = "LGPL"
-__version__ = "0.2.1"
-__maintainer__ = "Kir Ermakov"
-__email__ = "isox@vulners.com"
-__status__ = "Release"
-
-
 vulnersURL = {
     'searchAPI' : 'https://vulners.com/api/v3/search/lucene/',
     'updateAPI' : 'https://vulners.com/api/v3/archive/getsploit/',
@@ -586,7 +571,7 @@ def getUrllibOpener():
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx))
-    opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v%s' % __version__)]
+    opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v0.2.1')]
     return opener
 
 
