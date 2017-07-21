@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from __future__ import division
+#!/usr/bin/env python3.6
 
 __author__ = "Kir Ermakov <isox(at)vulners.com>"
 __copyright__ = "Copyright 2017, Vulners"
@@ -16,10 +14,7 @@ __maintainer__ = "Kir Ermakov"
 __email__ = "isox@vulners.com"
 __status__ = "Release"
 
-try:
-    import urllib.request as urllib2
-except ImportError:
-    import urllib2
+import urllib.request as urllib2
 import json
 import ssl
 import sys
@@ -35,46 +30,24 @@ vulnersURL = {
     'idAPI' : 'https://vulners.com/api/v3/search/id/',
     }
 
-pythonVersion = float(".".join(platform.python_version().split(".")[:2]))
-
-if pythonVersion > 2.6:
-    import argparse
-else:
-    from optparse import OptionParser as argparse
+import argparse
 
 __all__ = ["Texttable", "ArraySizeError"]
 
-try:
-    if pythonVersion >= 2.3:
-        import textwrap
-    elif pythonVersion >= 2.2:
-        from optparse import textwrap
-    else:
-        from optik import textwrap
-except ImportError:
-    sys.stderr.write("Can't import textwrap module!\n")
-    raise
+import textwrap
 
-if pythonVersion >= 2.7:
-    from functools import reduce
+from functools import reduce
 
-if pythonVersion >= 3.0:
-    unicode_type = str
-    bytes_type = bytes
-else:
-    unicode_type = unicode
-    bytes_type = str
+unicode_type = str
+bytes_type = bytes
 
 
 DBPATH, SCRIPTNAME = os.path.split(os.path.abspath(__file__))
 DBFILE = os.path.join(DBPATH, 'getsploit.db')
 
-try:
-    import sqlite3
-    import zipfile
-    LOCAL_SEARCH_AVAILABLE = True
-except:
-    LOCAL_SEARCH_AVAILABLE = False
+import sqlite3
+import zipfile
+
 
 def obj2unicode(obj):
     """Return a unicode representation of a python object
@@ -569,14 +542,8 @@ def slugify(value):
     Normalizes string, converts to lowercase, removes non-alpha characters,
     and converts spaces to hyphens.
     """
-    if pythonVersion > 3.0:
-        value = re.sub('[^\w\s-]', '', value).strip().lower()
-        value = re.sub('[-\s]+', '-', value)
-        return value
-    import unicodedata
-    value = unicodedata.normalize('NFKD', unicode(value)).encode('ascii', 'ignore')
-    value = unicode(re.sub('[^\w\s-]', '', value).strip().lower())
-    value = unicode(re.sub('[-\s]+', '-', value))
+    value = re.sub('[^\w\s-]', '', value).strip().lower()
+    value = re.sub('[-\s]+', '-', value)
     return value
 
 
@@ -609,26 +576,16 @@ def downloadFile(srcurl, dstfilepath, progress_callback=None, block_size=8192):
     with open(dstfilepath,"wb") as out_file:
         opener = getUrllibOpener()
         req = urllib2.Request(srcurl)
-        if pythonVersion > 3:
-            with opener.open(req) as response:
-                file_size = int(response.getheader("Content-Length"))
-                _download_helper(response,out_file,file_size)
-        else:
-            response = opener.open(req)
-            meta = response.info()
-            file_size = int(meta.getheaders("Content-Length")[0])
+        with opener.open(req) as response:
+            file_size = int(response.getheader("Content-Length"))
             _download_helper(response,out_file,file_size)
 
 def getUrllibOpener():
-    if pythonVersion > 3.0:
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ctx))
-        opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v%s' % __version__)]
-    else:
-        opener = urllib2.build_opener(urllib2.HTTPSHandler())
-        opener.addheaders = [('Content-Type', 'application/json'), ('User-Agent', 'vulners-getsploit-v%s' % __version__)]
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    opener = urllib2.build_opener(urllib2.HTTPSHandler(context=ctx))
+    opener.addheaders = [('Content-Type', 'application/json'),('User-Agent', 'vulners-getsploit-v%s' % __version__)]
     return opener
 
 
@@ -704,15 +661,10 @@ def exploitLocalSearch(query, lookupFields = None, limit = 10):
 
 def main():
     description = 'Exploit search and download utility'
-    if pythonVersion > 2.6:
-        parser = argparse.ArgumentParser(description)
-        addArgumentCall = parser.add_argument
-    else:
-        parser = argparse(description)
-        addArgumentCall = parser.add_option
+    parser = argparse.ArgumentParser(description)
+    addArgumentCall = parser.add_argument
     #
-    if pythonVersion > 2.6:
-        addArgumentCall('query', metavar='query', type=str, nargs='*', help='Exploit search query. See https://vulners.com/help for the detailed manual.')
+    addArgumentCall('query', metavar='query', type=str, nargs='*', help='Exploit search query. See https://vulners.com/help for the detailed manual.')
     # Arguments
     addArgumentCall('-t', '--title', action='store_true',
                         help="Search JUST the exploit title (Default is description and source code).")
@@ -722,24 +674,19 @@ def main():
                         help='Mirror (aka copies) search result exploit files to the subdirectory with your search query name.')
     addArgumentCall('-c', '--count', nargs=1, type=int, default=10,
                         help='Search limit. Default 10.')
-    if LOCAL_SEARCH_AVAILABLE:
-        addArgumentCall('-l', '--local', action='store_true',
-                        help='Perform search in the local database instead of searching online.')
-        addArgumentCall('-u', '--update', action='store_true',
-                        help='Update getsploit.db database. Will be downloaded in the script path.')
+    addArgumentCall('-l', '--local', action='store_true',
+                    help='Perform search in the local database instead of searching online.')
+    addArgumentCall('-u', '--update', action='store_true',
+                    help='Update getsploit.db database. Will be downloaded in the script path.')
 
-    if pythonVersion > 2.6:
-        options = parser.parse_args()
-        searchQuery = " ".join(options.query)
-    else:
-        options, args = parser.parse_args()
-        searchQuery = " ".join(args)
+    options = parser.parse_args()
+    searchQuery = " ".join(options.query)
 
     if isinstance(options.count, list):
         options.count = options.count[0]
 
     # Update goes first
-    if LOCAL_SEARCH_AVAILABLE and options.update:
+    if options.update:
         downloadVulnersGetsploitDB(DBPATH)
         print("Database download complete. Now you may search exploits using --local key './getsploit.py -l wordpress 4.7'")
         exit()
@@ -751,7 +698,7 @@ def main():
 
 
     # Select propriate search method for the search. Local/remote
-    if LOCAL_SEARCH_AVAILABLE and options.local:
+    if options.local:
         if not os.path.exists(DBFILE):
             print("There is no local database file near getsploit. Run './getsploit.py --update'")
             exit()
@@ -778,8 +725,6 @@ def main():
                 os.mkdir(pathName)
             with open("./%s/%s.txt" % (pathName,slugify(bulletin.get('id'))), 'w') as exploitFile:
                 exploitData = bulletin.get('sourceData') or bulletin.get('description')
-                if pythonVersion < 3.0:
-                    exploitData = exploitData.encode('utf-8').strip()
                 exploitFile.write(exploitData)
     if options.json:
         # Json output
@@ -787,10 +732,7 @@ def main():
     else:
         # Text output
         print("Total found exploits: %s" % searchResults.get('total'))
-        if pythonVersion < 3:
-            quoteStringHandler = urllib.quote_plus
-        else:
-            quoteStringHandler = urllib.parse.quote_plus
+        quoteStringHandler = urllib.parse.quote_plus
         print("Web-search URL: https://vulners.com/search?query=%s" % quoteStringHandler(finalQuery))
         # Set max coll width by len of the url for better copypaste
         maxWidth = max(len(element[2]) for element in tableRows)
