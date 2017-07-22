@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python
 
 import argparse
 import sys
@@ -8,10 +8,14 @@ import texttable
 
 
 def main():
-    if sys.version_info < (3, 6):
-        raise SystemExit("Python version 3.6 or later is required!")
+    check_python_version()
     search_exploits()
     sys.exit()
+
+
+def check_python_version():
+    if sys.version_info < (3, 6):
+        raise SystemExit("Python version 3.6 or later is required!")
 
 
 def search_exploits():
